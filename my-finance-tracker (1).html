@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Finance">
+<title>My Finance Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #0c0c10;
+  --surface: #16161e;
+  --surface2: #1e1e28;
+  --surface3: #252532;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.11);
+  --text: #ededf5;
+  --muted: #787895;
+  --muted2: #55556a;
+  --accent: #7c6dfa;
+  --accent-light: rgba(124,109,250,0.15);
+  --green: #4ecb91;
+  --green-light: rgba(78,203,145,0.12);
+  --danger: #ef5b5b;
+  --danger-light: rgba(239,91,91,0.12);
+  --warn: #f0a030;
+  --warn-light: rgba(240,160,48,0.12);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  max-width: 430px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 0; }
+
+/* ── HEADER ── */
+.header {
+  padding: 56px 20px 14px;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--border);
+}
+.header-row { display: flex; align-items: center; justify-content: space-between; }
+.app-name { font-size: 20px; font-weight: 600; letter-spacing: -0.4px; }
+.app-name em { font-style: normal; color: var(--accent); }
+.header-date { font-size: 12px; color: var(--muted); }
+
+/* ── MAIN CONTENT ── */
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: calc(70px + var(--safe-bottom));
+}
+.view { display: none; padding: 16px; }
+.view.active { display: block; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 20;
+  padding-bottom: var(--safe-bottom);
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px 12px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: .02em;
+  transition: color .2s;
+}
+.nav-item.active { color: var(--accent); }
+.nav-icon { font-size: 22px; line-height: 1; }
+
+/* ── SECTION TITLE ── */
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin: 18px 0 8px;
+}
+.section-title:first-child { margin-top: 4px; }
+
+/* ── METRIC CARDS ── */
+.metrics { display: grid; gap: 8px; margin-bottom: 4px; }
+.metrics.col2 { grid-template-columns: 1fr 1fr; }
+.metrics.col3 { grid-template-columns: 1fr 1fr 1fr; }
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 13px 14px;
+}
+.metric-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.metric-value { font-size: 19px; font-weight: 600; font-family: var(--mono); letter-spacing: -0.5px; }
+.metric-value.green { color: var(--green); }
+.metric-value.red { color: var(--danger); }
+.metric-value.warn { color: var(--warn); }
+.metric-value.purple { color: var(--accent); }
+
+/* ── SURFACE CARD ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.card-inner { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 10px; }
+
+/* ── ROWS ── */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.row:last-child { border-bottom: none; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.row-name { flex: 1; font-size: 14px; }
+.row-sub { font-size: 11px; color: var(--muted); }
+.row-val { font-size: 13px; font-weight: 500; font-family: var(--mono); white-space: nowrap; }
+
+/* ── SMALL PROGRESS ── */
+.prog { flex: 1.2; height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 3px; }
+
+/* ── CHIP / BADGE ── */
+.chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  white-space: nowrap;
+}
+.chip.blue { background: rgba(124,109,250,.14); color: #a99cff; }
+.chip.green { background: var(--green-light); color: var(--green); }
+.chip.amber { background: var(--warn-light); color: var(--warn); }
+.chip.purple { background: rgba(190,120,250,.12); color: #d0a0ff; }
+.chip.teal { background: rgba(50,200,180,.1); color: #5de8d0; }
+.chip.red { background: var(--danger-light); color: var(--danger); }
+.hya { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; background: var(--green-light); color: var(--green); }
+
+/* ── GOAL CARDS ── */
+.goal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 10px;
+  transition: border-color .3s;
+}
+.goal-card.complete { border-color: rgba(78,203,145,.3); }
+.goal-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.goal-name { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+.goal-right { text-align: right; }
+.goal-pct { font-size: 18px; font-weight: 700; font-family: var(--mono); color: var(--accent); letter-spacing: -1px; }
+.goal-pct.done { color: var(--green); }
+.goal-meter-bg { background: var(--surface2); border-radius: 14px; height: 20px; overflow: hidden; margin-bottom: 10px; }
+.goal-meter-fill {
+  height: 100%; border-radius: 14px;
+  transition: width 1.3s cubic-bezier(.4,0,.2,1);
+  display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
+}
+.goal-meter-txt { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.85); }
+.goal-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.goal-amounts { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.goal-amounts strong { color: var(--text); font-weight: 500; }
+.goal-done-badge { font-size: 11px; font-weight: 600; color: var(--green); background: var(--green-light); padding: 3px 10px; border-radius: 20px; }
+.goal-to-go { font-size: 12px; color: var(--muted); }
+
+/* OVERALL BAR */
+.overall-bg { background: var(--surface2); border-radius: 14px; height: 26px; overflow: hidden; margin: 10px 0 6px; }
+.overall-fill {
+  height: 100%; border-radius: 14px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--green) 100%);
+  transition: width 1.1s cubic-bezier(.4,0,.2,1);
+  display: flex; align-items: center; justify-content: flex-end; padding-right: 12px;
+  min-width: 0;
+}
+.overall-pct-txt { font-size: 12px; font-weight: 700; color: #fff; }
+
+/* QUICK DEPOSIT */
+.quick-dep { display: flex; gap: 6px; margin-top: 12px; }
+.quick-dep input {
+  flex: 1; height: 36px; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius-xs); color: var(--text); font-family: var(--mono);
+  font-size: 14px; padding: 0 10px; outline: none;
+}
+.quick-dep input:focus { border-color: var(--accent); }
+.quick-dep input::placeholder { color: var(--muted2); }
+.quick-dep button {
+  height: 36px; padding: 0 14px; background: var(--accent); border: none;
+  border-radius: var(--radius-xs); color: #fff; font-family: var(--font);
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.quick-dep button:active { opacity: .8; }
+
+/* ── FORMS ── */
+.form-group { margin-bottom: 11px; }
+.form-label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 5px; font-weight: 500; }
+.form-input {
+  width: 100%; height: 44px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-family: var(--font); font-size: 15px; padding: 0 14px; outline: none;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--muted2); }
+select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237878a0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+select.form-input option { background: #1e1e28; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+.toggle-row label { font-size: 13px; color: var(--muted); cursor: pointer; }
+input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.form-submit {
+  width: 100%; height: 48px; background: var(--accent); border: none;
+  border-radius: var(--radius-sm); color: #fff; font-family: var(--font);
+  font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 6px;
+  letter-spacing: -.2px;
+}
+.form-submit:active { opacity: .85; }
+.err { font-size: 12px; color: var(--danger); margin-top: 8px; display: none; }
+
+/* ── ICON BUTTON ── */
+.icon-btn { background: none; border: none; cursor: pointer; color: var(--muted2); font-size: 18px; padding: 3px; line-height: 1; }
+.icon-btn:hover { color: var(--danger); }
+
+/* MONTH NAV */
+.month-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.month-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.month-btn:active { background: var(--surface2); }
+.month-label { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 30px 16px; color: var(--muted); font-size: 13px; }
+
+/* ACCOUNT PILL ROW */
+.acct-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-bottom: 8px;
+}
+.acct-icon-wrap {
+  width: 36px; height: 36px; border-radius: 10px; background: var(--surface3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+.acct-info { flex: 1; min-width: 0; }
+.acct-name-text { font-size: 14px; font-weight: 500; }
+.acct-type-text { font-size: 11px; color: var(--muted); }
+.acct-balance-text { font-size: 14px; font-weight: 600; font-family: var(--mono); white-space: nowrap; }
+
+/* HYA PROJECTION TABLE */
+.proj-row { display: flex; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--border); align-items: center; }
+.proj-row:last-child { border-bottom: none; }
+
+/* EXPENSE ITEM */
+.exp-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.exp-item:last-child { border-bottom: none; }
+.exp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.exp-cat { font-size: 13px; min-width: 80px; }
+.exp-note { flex: 1; font-size: 12px; color: var(--muted); }
+.exp-date { font-size: 11px; color: var(--muted); min-width: 70px; text-align: right; }
+.exp-amt { font-size: 14px; font-weight: 600; font-family: var(--mono); min-width: 65px; text-align: right; }
+
+/* CHART WRAPPER */
+.chart-wrap { position: relative; width: 100%; height: 200px; }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.view.active { animation: fadeUp .22s ease; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-row">
+    <div class="app-name">my <em>finance</em></div>
+    <div class="header-date" id="header-date"></div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ── OVERVIEW ── -->
+  <div class="view active" id="view-overview">
+    <div class="month-nav">
+      <button class="month-btn" onclick="changeMonth(-1)">&#8249;</button>
+      <span class="month-label" id="month-label">—</span>
+      <button class="month-btn" onclick="changeMonth(1)">&#8250;</button>
+    </div>
+
+    <div class="metrics col3" style="margin-bottom:8px;">
+      <div class="metric-card"><div class="metric-label">Budget</div><div class="metric-value purple" id="m-budget">$0</div></div>
+      <div class="metric-card"><div class="metric-label">Spent</div><div class="metric-value" id="m-spent">$0</div></div>
+      <div class="metric-card"><div class="metric-label">Left</div><div class="metric-value" id="m-remaining">$0</div></div>
+    </div>
+    <div class="metrics col2" style="margin-bottom:16px;">
+      <div class="metric-card"><div class="metric-label">Total saved</div><div class="metric-value green" id="m-savings">$0</div></div>
+      <div class="metric-card"><div class="metric-label">All accounts</div><div class="metric-value purple" id="m-accts">$0</div></div>
+    </div>
+
+    <div class="section-title">Spending by category</div>
+    <div class="card" style="padding:10px 14px;"><div id="cat-list-overview"></div></div>
+
+    <div class="section-title">Chart</div>
+    <div class="card" style="padding:14px;">
+      <div class="chart-wrap"><canvas id="chart-main" role="img" aria-label="Spending vs budget by category"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── LOG EXPENSE ── -->
+  <div class="view" id="view-log">
+    <div class="section-title">Add expense</div>
+    <div class="card">
+      <div class="form-group"><label class="form-label">Category</label><select class="form-input" id="log-cat"></select></div>
+      <div class="form-group"><label class="form-label">Account</label><select class="form-input" id="log-acct"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Amount ($)</label><input class="form-input" type="number" id="log-amt" placeholder="0.00" min="0" step="0.01"></div>
+        <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="log-date"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Note (optional)</label><input class="form-input" type="text" id="log-note" placeholder="e.g. Supermax run"></div>
+      <button class="form-submit" onclick="addExpense()">+ Add Expense</button>
+      <div class="err" id="log-err"></div>
+    </div>
+
+    <div class="section-title">This month</div>
+    <div class="card" style="padding:10px 14px;"><div id="expense-list"></div></div>
+  </div>
+
+  <!-- ── GOALS ── -->
+  <div class="view" id="view-goals">
+    <div class="section-title">Overall progress</div>
+    <div class="card" id="overall-card"></div>
+
+    <div class="section-title">My goals</div>
+    <div id="goals-list"></div>
+
+    <div class="section-title">Add / edit goal</div>
+    <div class="card">
+      <div class="form-group"><label class="form-label">Goal name</label><input class="form-input" type="text" id="sg-name" placeholder="e.g. Emergency fund"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Target ($)</label><input class="form-input" type="number" id="sg-target" placeholder="5000" min="0"></div>
+        <div class="form-group"><label class="form-label">Saved so far ($)</label><input class="form-input" type="number" id="sg-saved" placeholder="0" min="0"></div>
+      </div>
+      <button class="form-submit" onclick="addGoal()">Save Goal</button>
+      <div class="err" id="sg-err"></div>
+    </div>
+  </div>
+
+  <!-- ── ACCOUNTS ── -->
+  <div class="view" id="view-accounts">
+    <div class="section-title">My accounts</div>
+    <div id="acct-list"></div>
+
+    <div class="section-title">Add account</div>
+    <div class="card">
+      <div class="form-group">
+        <label class="form-label">Account name</label>
+        <input class="form-input" type="text" id="acct-name" placeholder="BPPR, AMEX, PenFed…" list="acct-sugg">
+        <datalist id="acct-sugg"><option value="BPPR"><option value="AMEX"><option value="PenFed"><option value="FirstBank"><option value="Oriental"><option value="Chase"><option value="Discover"></datalist>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-input" id="acct-type" onchange="toggleApy()">
+            <option value="checking">Checking</option>
+            <option value="savings">Savings</option>
+            <option value="credit">Credit card</option>
+            <option value="investment">Investment</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Balance ($)</label><input class="form-input" type="number" id="acct-balance" placeholder="0.00" min="0"></div>
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" id="acct-hya" onchange="toggleApy()">
+        <label for="acct-hya">High-yield account?</label>
+      </div>
+      <div id="apy-wrap" style="display:none;">
+        <div class="form-group"><label class="form-label">APY (%)</label><input class="form-input" type="number" id="acct-apy" placeholder="e.g. 4.75" min="0" step="0.01"></div>
+      </div>
+      <button class="form-submit" onclick="addAccount()">+ Add Account</button>
+      <div class="err" id="acct-err"></div>
+    </div>
+
+    <div class="section-title">Update balance</div>
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Account</label><select class="form-input" id="upd-acct"></select></div>
+        <div class="form-group"><label class="form-label">New balance ($)</label><input class="form-input" type="number" id="upd-bal" placeholder="0.00"></div>
+      </div>
+      <button class="form-submit" onclick="updateBalance()">Update Balance</button>
+    </div>
+
+    <div class="section-title">High-yield projections</div>
+    <div class="card" style="padding:10px 14px;"><div id="hya-proj"></div></div>
+  </div>
+
+  <!-- ── CATEGORIES ── -->
+  <div class="view" id="view-cats">
+    <div class="section-title">Add category</div>
+    <div class="card">
+      <div class="form-group"><label class="form-label">Name</label><input class="form-input" type="text" id="cat-name" placeholder="e.g. Groceries"></div>
+      <div class="form-group"><label class="form-label">Monthly budget ($)</label><input class="form-input" type="number" id="cat-budget" placeholder="0" min="0"></div>
+      <button class="form-submit" onclick="addCategory()">+ Add Category</button>
+      <div class="err" id="cat-err"></div>
+    </div>
+    <div class="section-title">My categories</div>
+    <div class="card" style="padding:10px 14px;"><div id="cat-manage"></div></div>
+  </div>
+
+  <!-- ── HISTORY ── -->
+  <div class="view" id="view-history">
+    <div class="section-title">All expenses</div>
+    <div class="card" style="padding:10px 14px;"><div id="history-list"></div></div>
+  </div>
+
+</main>
+
+<!-- ── BOTTOM NAV ── -->
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-overview" onclick="showTab('overview')">
+    <span class="nav-icon">⊞</span>Overview
+  </button>
+  <button class="nav-item" id="nav-log" onclick="showTab('log')">
+    <span class="nav-icon">＋</span>Log
+  </button>
+  <button class="nav-item" id="nav-goals" onclick="showTab('goals')">
+    <span class="nav-icon">◎</span>Goals
+  </button>
+  <button class="nav-item" id="nav-accounts" onclick="showTab('accounts')">
+    <span class="nav-icon">▣</span>Accounts
+  </button>
+  <button class="nav-item" id="nav-cats" onclick="showTab('cats')">
+    <span class="nav-icon">⊟</span>Categories
+  </button>
+</nav>
+
+<script>
+// ── STATE ──
+const KEY = 'myfinance_v1';
+const COLORS = ['#7c6dfa','#4ecb91','#f0a030','#ef5b5b','#5de8d0','#d09cff','#f5c842','#fa6d8a','#6db8fa','#a0e060'];
+const GOAL_COLS = ['#7c6dfa','#4ecb91','#f0a030','#d09cff','#5de8d0','#fa6d8a'];
+const ACCT_ICONS = { checking: '🏦', savings: '💰', credit: '💳', investment: '📈' };
+const ACCT_CHIPS = { checking: 'blue', savings: 'green', credit: 'amber', investment: 'purple' };
+
+let S = { categories: [], expenses: [], accounts: [], goals: [], month: null };
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) S = JSON.parse(raw);
+  } catch(e) {}
+  if (!S.categories) S.categories = [];
+  if (!S.expenses) S.expenses = [];
+  if (!S.accounts) S.accounts = [];
+  if (!S.goals) S.goals = [];
+  if (!S.month) {
+    const n = new Date();
+    S.month = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+  }
+}
+function saveState() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e) {} }
+
+// ── UTILS ──
+function fmt(n) { return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function monthLabel(ym) {
+  const [y,m] = ym.split('-');
+  return new Date(+y,+m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+}
+function changeMonth(d) {
+  const [y,m] = S.month.split('-').map(Number);
+  const dt = new Date(y, m-1+d, 1);
+  S.month = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+  render();
+}
+function getMonthExp(ym) { return S.expenses.filter(e => e.date && e.date.startsWith(ym)); }
+function getCatSpent(cid, ym) { return getMonthExp(ym).filter(e=>e.catId===cid).reduce((s,e)=>s+e.amount,0); }
+function showErr(id, msg) { const el=document.getElementById(id); if(el){el.textContent=msg;el.style.display=msg?'':'none';} }
+function moInt(b,a){return b*(a/100/12);}
+function yrInt(b,a){return b*(Math.pow(1+a/100/12,12)-1);}
+function toggleApy() {
+  const hya = document.getElementById('acct-hya').checked;
+  const type = document.getElementById('acct-type').value;
+  document.getElementById('apy-wrap').style.display = (hya && type !== 'credit') ? '' : 'none';
+}
+
+// ── TABS ──
+const TABS = ['overview','log','goals','accounts','cats'];
+function showTab(t) {
+  TABS.forEach(id => {
+    document.getElementById('view-'+id).classList.toggle('active', id===t);
+    document.getElementById('nav-'+id).classList.toggle('active', id===t);
+  });
+  if (t==='overview') setTimeout(renderChart, 60);
+}
+
+// ── RENDER ──
+let chartInst = null;
+function render() {
+  // header date
+  document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('month-label').textContent = monthLabel(S.month);
+
+  const totBudget = S.categories.reduce((s,c)=>s+c.budget,0);
+  const totSpent  = S.categories.reduce((s,c)=>s+getCatSpent(c.id,S.month),0);
+  const remaining = totBudget - totSpent;
+  const totSaved  = S.goals.reduce((s,g)=>s+g.saved,0);
+  const totAccts  = S.accounts.reduce((s,a)=>s+a.balance,0);
+
+  document.getElementById('m-budget').textContent = fmt(totBudget);
+  document.getElementById('m-spent').textContent = fmt(totSpent);
+  const remEl = document.getElementById('m-remaining');
+  remEl.textContent = fmt(remaining);
+  remEl.className = 'metric-value ' + (remaining < 0 ? 'red' : remaining < totBudget*0.15 ? 'warn' : 'green');
+  document.getElementById('m-savings').textContent = fmt(totSaved);
+  document.getElementById('m-accts').textContent = fmt(totAccts);
+
+  renderCatOverview();
+  renderChart();
+  renderGoals();
+  renderLog();
+  renderAccounts();
+  renderCatManage();
+  renderHistory();
+  populateSelects();
+}
+
+function renderCatOverview() {
+  const el = document.getElementById('cat-list-overview');
+  if (!S.categories.length) { el.innerHTML = '<div class="empty">No categories yet — go to Categories tab.</div>'; return; }
+  el.innerHTML = S.categories.map((c,i) => {
+    const sp = getCatSpent(c.id, S.month);
+    const left = c.budget - sp;
+    const pct = c.budget > 0 ? Math.min(100, (sp/c.budget)*100) : 0;
+    const col = COLORS[i % COLORS.length];
+    const lc = left < 0 ? '#ef5b5b' : left < c.budget*0.15 ? '#f0a030' : '#4ecb91';
+    return `<div class="row">
+      <div class="dot" style="background:${col}"></div>
+      <span class="row-name">${c.name}</span>
+      <div class="prog"><div class="prog-fill" style="width:${pct.toFixed(1)}%;background:${col};"></div></div>
+      <span class="row-val" style="color:${lc};min-width:68px;text-align:right;">${fmt(left)}</span>
+      <button class="icon-btn" onclick="deleteCategory('${c.id}')">×</button>
+    </div>`;
+  }).join('');
+}
+
+function renderChart() {
+  const canvas = document.getElementById('chart-main');
+  if (!S.categories.length) return;
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  const isDark = true;
+  const gc = 'rgba(255,255,255,.06)';
+  const tc = '#7878a0';
+  chartInst = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: S.categories.map(c=>c.name),
+      datasets: [
+        { label:'Budget', data: S.categories.map(c=>c.budget), backgroundColor: S.categories.map((_,i)=>COLORS[i%COLORS.length]+'28'), borderColor: S.categories.map((_,i)=>COLORS[i%COLORS.length]), borderWidth:1, borderRadius:6 },
+        { label:'Spent',  data: S.categories.map((c,i)=>getCatSpent(c.id,S.month)), backgroundColor: S.categories.map((_,i)=>COLORS[i%COLORS.length]), borderRadius:6 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid:{color:gc}, ticks:{color:tc,font:{size:10,family:'DM Sans'}} },
+        y: { grid:{color:gc}, ticks:{color:tc,font:{size:10,family:'DM Sans'},callback:v=>'$'+v.toLocaleString()}, beginAtZero:true }
+      }
+    }
+  });
+}
+
+function renderGoals() {
+  const totSaved  = S.goals.reduce((s,g)=>s+g.saved,0);
+  const totTarget = S.goals.reduce((s,g)=>s+g.target,0);
+  const overallPct = totTarget>0 ? Math.min(100,(totSaved/totTarget)*100) : 0;
+
+  const oc = document.getElementById('overall-card');
+  oc.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+      <span style="font-size:14px;font-weight:500;">All goals combined</span>
+      <span style="font-size:12px;color:var(--muted);">${fmt(totSaved)} of ${fmt(totTarget)}</span>
+    </div>
+    <div class="overall-bg">
+      <div class="overall-fill" id="overall-fill" style="width:0%;">
+        <span class="overall-pct-txt" id="overall-pct-txt"></span>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);text-align:right;">${overallPct.toFixed(0)}% of total goal</div>`;
+  setTimeout(()=>{
+    const f=document.getElementById('overall-fill');
+    const l=document.getElementById('overall-pct-txt');
+    if(f) f.style.width=overallPct.toFixed(1)+'%';
+    if(l&&overallPct>10) l.textContent=overallPct.toFixed(0)+'%';
+  },80);
+
+  const gl = document.getElementById('goals-list');
+  if (!S.goals.length) {
+    gl.innerHTML = '<div class="card"><div class="empty">No goals yet. Add one below!</div></div>';
+    return;
+  }
+  gl.innerHTML = S.goals.map((g,i) => {
+    const pct = g.target>0 ? Math.min(100,(g.saved/g.target)*100) : 0;
+    const col = GOAL_COLS[i % GOAL_COLS.length];
+    const done = pct >= 100;
+    const left = Math.max(0, g.target - g.saved);
+    const statusTxt = done ? '🎉 Goal reached!' : pct > 60 ? 'Almost there!' : pct > 20 ? 'Making progress' : 'Just getting started';
+    return `<div class="goal-card${done?' complete':''}">
+      <div class="goal-top">
+        <div>
+          <div class="goal-name">${g.name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">${statusTxt}</div>
+        </div>
+        <div class="goal-right">
+          <div class="goal-pct${done?' done':''}">${pct.toFixed(0)}%</div>
+          <button class="icon-btn" onclick="deleteGoal('${g.id}')" style="margin-top:4px;">×</button>
+        </div>
+      </div>
+      <div class="goal-meter-bg">
+        <div class="goal-meter-fill" id="gf-${g.id}" style="width:0%;background:${col};">
+          <span class="goal-meter-txt" id="gt-${g.id}"></span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="goal-amounts"><strong>${fmt(g.saved)}</strong> saved of <strong>${fmt(g.target)}</strong></div>
+        ${done ? `<span class="goal-done-badge">Complete ✓</span>` : `<span style="font-size:12px;color:var(--muted);">${fmt(left)} to go</span>`}
+      </div>
+      <div class="quick-dep">
+        <input type="number" id="di-${g.id}" placeholder="$ deposit amount" min="0" step="1">
+        <button onclick="quickDeposit('${g.id}')">+ Add</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  setTimeout(()=>{
+    S.goals.forEach((g,i)=>{
+      const pct = g.target>0 ? Math.min(100,(g.saved/g.target)*100) : 0;
+      const fill = document.getElementById('gf-'+g.id);
+      const txt  = document.getElementById('gt-'+g.id);
+      if(fill) fill.style.width = pct.toFixed(1)+'%';
+      if(txt && pct>10) txt.textContent = pct.toFixed(0)+'%';
+    });
+  },80);
+}
+
+function quickDeposit(gid) {
+  const inp = document.getElementById('di-'+gid);
+  const amt = parseFloat(inp.value);
+  if (!amt || amt<=0) return;
+  const g = S.goals.find(x=>x.id===gid);
+  if (g) g.saved = Math.min(g.target, g.saved+amt);
+  inp.value='';
+  saveState(); renderGoals();
+}
+
+function renderLog() {
+  const list = document.getElementById('expense-list');
+  const exps = getMonthExp(S.month).slice().reverse();
+  if (!exps.length) { list.innerHTML='<div class="empty">No expenses this month.</div>'; return; }
+  list.innerHTML = exps.map(e => {
+    const ci = S.categories.findIndex(c=>c.id===e.catId);
+    const cat = S.categories[ci];
+    const col = cat ? COLORS[ci%COLORS.length] : '#555';
+    const acct = S.accounts.find(a=>a.id===e.acctId);
+    return `<div class="exp-item">
+      <div class="exp-dot" style="background:${col}"></div>
+      <span class="exp-cat">${cat?cat.name:'?'}</span>
+      <span class="exp-note">${e.note||''}${acct?` · ${acct.name}`:''}</span>
+      <span class="exp-date">${e.date}</span>
+      <span class="exp-amt">${fmt(e.amount)}</span>
+      <button class="icon-btn" onclick="deleteExpense('${e.id}')">×</button>
+    </div>`;
+  }).join('');
+}
+
+function renderAccounts() {
+  const list = document.getElementById('acct-list');
+  if (!S.accounts.length) { list.innerHTML='<div class="card"><div class="empty">No accounts yet.</div></div>'; }
+  else {
+    list.innerHTML = S.accounts.map(a => {
+      const chipCls = ACCT_CHIPS[a.type]||'blue';
+      const hyaBadge = a.highYield&&a.apy ? `<span class="hya">▲ ${parseFloat(a.apy).toFixed(2)}% APY</span>` : '';
+      return `<div class="acct-row">
+        <div class="acct-icon-wrap">${ACCT_ICONS[a.type]||'🏦'}</div>
+        <div class="acct-info">
+          <div class="acct-name-text">${a.name} ${hyaBadge}</div>
+          <div class="acct-type-text"><span class="chip ${chipCls}">${a.type}</span>${a.highYield&&a.apy?` · +${fmt(moInt(a.balance,a.apy))}/mo`:''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="acct-balance-text">${fmt(a.balance)}</span>
+          <button class="icon-btn" onclick="deleteAccount('${a.id}')">×</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const hyaAccts = S.accounts.filter(a=>a.highYield&&a.apy&&a.balance>0);
+  const proj = document.getElementById('hya-proj');
+  if (!hyaAccts.length) { proj.innerHTML='<div class="empty">No high-yield accounts yet.</div>'; return; }
+  proj.innerHTML = hyaAccts.map(a=>`
+    <div class="proj-row">
+      <span style="flex:1;font-size:13px;">${a.name}</span>
+      <span class="hya">${parseFloat(a.apy).toFixed(2)}%</span>
+      <span style="font-size:12px;color:var(--green);font-family:var(--mono);min-width:70px;text-align:right;">+${fmt(moInt(a.balance,a.apy))}/mo</span>
+      <span style="font-size:12px;color:var(--muted);font-family:var(--mono);min-width:72px;text-align:right;">+${fmt(yrInt(a.balance,a.apy))}/yr</span>
+    </div>`).join('') +
+    (hyaAccts.length>1 ? `<div class="proj-row" style="border-top:1px solid var(--border2);margin-top:4px;padding-top:10px;">
+      <span style="flex:1;font-size:13px;font-weight:500;">Total</span>
+      <span style="font-size:13px;color:var(--green);font-weight:600;font-family:var(--mono);">+${fmt(hyaAccts.reduce((s,a)=>s+moInt(a.balance,a.apy),0))}/mo</span>
+      <span style="font-size:13px;color:var(--muted);font-family:var(--mono);margin-left:8px;">+${fmt(hyaAccts.reduce((s,a)=>s+yrInt(a.balance,a.apy),0))}/yr</span>
+    </div>` : '');
+}
+
+function renderCatManage() {
+  const el = document.getElementById('cat-manage');
+  if (!S.categories.length) { el.innerHTML='<div class="empty">No categories yet.</div>'; return; }
+  el.innerHTML = S.categories.map((c,i)=>`
+    <div class="row">
+      <div class="dot" style="background:${COLORS[i%COLORS.length]}"></div>
+      <span class="row-name">${c.name}</span>
+      <span class="row-val" style="color:var(--muted);">${fmt(c.budget)}/mo</span>
+      <button class="icon-btn" onclick="deleteCategory('${c.id}')">×</button>
+    </div>`).join('');
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  const all = S.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if (!all.length) { list.innerHTML='<div class="empty">No expenses yet.</div>'; return; }
+  list.innerHTML = all.map(e=>{
+    const ci = S.categories.findIndex(c=>c.id===e.catId);
+    const cat = S.categories[ci];
+    const col = cat ? COLORS[ci%COLORS.length] : '#555';
+    const acct = S.accounts.find(a=>a.id===e.acctId);
+    return `<div class="exp-item">
+      <div class="exp-dot" style="background:${col}"></div>
+      <span class="exp-cat">${cat?cat.name:'?'}</span>
+      <span class="exp-note">${e.note||''}${acct?` · ${acct.name}`:''}</span>
+      <span class="exp-date">${e.date}</span>
+      <span class="exp-amt">${fmt(e.amount)}</span>
+      <button class="icon-btn" onclick="deleteExpense('${e.id}')">×</button>
+    </div>`;
+  }).join('');
+}
+
+function populateSelects() {
+  const lc = document.getElementById('log-cat');
+  lc.innerHTML = S.categories.length ? S.categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('') : '<option value="">No categories</option>';
+  const la = document.getElementById('log-acct');
+  la.innerHTML = '<option value="">No account</option>' + S.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  const ua = document.getElementById('upd-acct');
+  ua.innerHTML = S.accounts.length ? S.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('') : '<option value="">No accounts</option>';
+}
+
+// ── ACTIONS ──
+function addCategory() {
+  const name = document.getElementById('cat-name').value.trim();
+  const budget = parseFloat(document.getElementById('cat-budget').value);
+  if (!name) return showErr('cat-err','Enter a name.');
+  if (!budget||budget<=0) return showErr('cat-err','Enter a valid budget.');
+  showErr('cat-err','');
+  S.categories.push({id:Date.now()+'',name,budget});
+  document.getElementById('cat-name').value='';
+  document.getElementById('cat-budget').value='';
+  saveState(); render();
+}
+function deleteCategory(id) { S.categories=S.categories.filter(c=>c.id!==id); saveState(); render(); }
+
+function addAccount() {
+  const name = document.getElementById('acct-name').value.trim();
+  const type = document.getElementById('acct-type').value;
+  const balance = parseFloat(document.getElementById('acct-balance').value)||0;
+  const highYield = document.getElementById('acct-hya').checked;
+  const apy = highYield ? parseFloat(document.getElementById('acct-apy').value)||0 : 0;
+  if (!name) return showErr('acct-err','Enter an account name.');
+  if (highYield && !apy) return showErr('acct-err','Enter the APY.');
+  showErr('acct-err','');
+  S.accounts.push({id:Date.now()+'',name,type,balance,highYield,apy});
+  document.getElementById('acct-name').value='';
+  document.getElementById('acct-balance').value='';
+  document.getElementById('acct-hya').checked=false;
+  document.getElementById('acct-apy').value='';
+  document.getElementById('apy-wrap').style.display='none';
+  saveState(); render();
+}
+function deleteAccount(id) { S.accounts=S.accounts.filter(a=>a.id!==id); saveState(); render(); }
+function updateBalance() {
+  const id = document.getElementById('upd-acct').value;
+  const bal = parseFloat(document.getElementById('upd-bal').value);
+  if (!id||isNaN(bal)) return;
+  const a = S.accounts.find(x=>x.id===id);
+  if (a) { a.balance=bal; document.getElementById('upd-bal').value=''; saveState(); render(); }
+}
+
+function addExpense() {
+  const catId = document.getElementById('log-cat').value;
+  const acctId = document.getElementById('log-acct').value||null;
+  const amount = parseFloat(document.getElementById('log-amt').value);
+  const note = document.getElementById('log-note').value.trim();
+  const date = document.getElementById('log-date').value;
+  if (!catId) return showErr('log-err','Add a category first.');
+  if (!amount||amount<=0) return showErr('log-err','Enter a valid amount.');
+  if (!date) return showErr('log-err','Select a date.');
+  showErr('log-err','');
+  S.expenses.push({id:Date.now()+'',catId,acctId,amount,note,date});
+  if (acctId) { const a=S.accounts.find(x=>x.id===acctId); if(a&&a.type!=='credit') a.balance=Math.max(0,a.balance-amount); }
+  const ym = date.slice(0,7);
+  if (ym!==S.month) S.month=ym;
+  document.getElementById('log-amt').value='';
+  document.getElementById('log-note').value='';
+  saveState(); render();
+}
+function deleteExpense(id) { S.expenses=S.expenses.filter(e=>e.id!==id); saveState(); render(); }
+
+function addGoal() {
+  const name = document.getElementById('sg-name').value.trim();
+  const target = parseFloat(document.getElementById('sg-target').value);
+  const saved = parseFloat(document.getElementById('sg-saved').value)||0;
+  if (!name) return showErr('sg-err','Enter a goal name.');
+  if (!target||target<=0) return showErr('sg-err','Enter a valid target.');
+  showErr('sg-err','');
+  const existing = S.goals.find(g=>g.name.toLowerCase()===name.toLowerCase());
+  if (existing) { existing.target=target; existing.saved=saved; }
+  else S.goals.push({id:Date.now()+'',name,target,saved});
+  document.getElementById('sg-name').value='';
+  document.getElementById('sg-target').value='';
+  document.getElementById('sg-saved').value='';
+  saveState(); render();
+}
+function deleteGoal(id) { S.goals=S.goals.filter(g=>g.id!==id); saveState(); render(); }
+
+// ── INIT ──
+loadState();
+document.getElementById('log-date').value = new Date().toISOString().slice(0,10);
+render();
+</script>
+</body>
+</html>
